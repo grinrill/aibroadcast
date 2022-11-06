@@ -7,6 +7,7 @@ import time
 import asyncio
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+import logging
 
 from .target import Target, TargetItem
 from .storage import BroadcastDB, Storage
@@ -14,6 +15,8 @@ from . import res
 from .res import Steps
 from . import schedule
 from . import handler
+
+log = logging.getLogger("broadcast")
 
 
 @dataclass
@@ -74,9 +77,11 @@ class Broadcast:
 
         if self.collected_content.get(message.chat.id):
             self.collected_content[message.chat.id].append(message)
+            log.debug("[chat:%d] collect content: new message", message.chat.id)
             return None
 
         self.collected_content[message.chat.id] = [message]
+        log.debug("[chat:%d] collect content: started", message.chat.id)
 
         wait = sec_wait
         while wait > 0:
@@ -89,6 +94,11 @@ class Broadcast:
 
         collected = self.collected_content[message.chat.id]
         del self.collected_content[message.chat.id]
+        log.debug(
+            "[chat:%d] collect content: finished, %d collected",
+            message.chat.id,
+            len(collected),
+        )
         return collected
 
     async def content(self, message: types.Message, state: FSMContext) -> types.Message:
@@ -176,9 +186,12 @@ class Broadcast:
         schedule_delta = schedule_at - datetime.now()
         is_scheduled = schedule_delta > timedelta(minutes=1)
 
+        log.debug("[chat:%d] save: before", message.chat.id)
         bc = BroadcastDB(messages, forward, disable_web_page_preview, schedule_at)
         bc = await self.storage.create(bc)
+        log.debug("[chat:%d] save: bc created, id=%d", message.chat.id, bc.id)
         count = self.target.init(bc.id)
+        log.debug("[chat:%d] save: target inited, count=%d", message.chat.id, count)
 
         if forward:
             duration = self.forward_delay * count * len(messages)
@@ -236,7 +249,13 @@ class Broadcast:
             for chat_id in self.admins:
                 try:
                     m = await self.bot.send_message(text)
-                except Exception:
+                except Exception as e:
+                    log.warn(
+                        "[bc:%d] report progress: send error, chat=%d, e: %s",
+                        bc.id,
+                        chat_id,
+                        e,
+                    )
                     continue
                 sent.append(StatusMessage(m.chat.id, m.message_id, m.date))
                 await asyncio.sleep(0.1)
@@ -248,7 +267,13 @@ class Broadcast:
                 continue
             try:
                 m = await self.bot.edit_message_text(text, s.chat_id, s.message_id)
-            except Exception:
+            except Exception as e:
+                log.warn(
+                    "[bc:%d] report progress: edit error, chat=%d, e: %s",
+                    bc.id,
+                    s.chat_id,
+                    e,
+                )
                 continue
             s.updated_at = m.date
 
@@ -258,7 +283,13 @@ class Broadcast:
             try:
                 await self.bot.send_message(text)
                 # todo: отправлять списки, возможно csv
-            except Exception:
+            except Exception as e:
+                log.warn(
+                    "[bc:%d] report progress: send finish error, chat=%d, e: %s",
+                    bc.id,
+                    chat_id,
+                    e,
+                )
                 continue
             await asyncio.sleep(0.1)
 
@@ -342,7 +373,7 @@ class Broadcast:
         except asyncio.CancelledError:
             raise
         except Exception:
-            pass
+            log.exception("[bc:%d] sender: process targets", bc.id)
         await self.target.update(bc.id, targets)
         asyncio.create_task(self.report_progress(bc))
         return len(targets)
@@ -356,4 +387,4 @@ class Broadcast:
             except asyncio.CancelledError:
                 raise
             except Exception:
-                pass
+                log.exception("daemon: sender error")
