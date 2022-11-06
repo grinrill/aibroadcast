@@ -5,7 +5,7 @@ class TargetFilter:
     pass
 
 
-class Item:
+class TargetItem:
     id: int
     processed: bool
     success: bool

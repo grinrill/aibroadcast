@@ -39,7 +39,7 @@ class Target(target.Target):
         )
         res = []
         async for r in recs:
-            t = target.Item(r["id"])
+            t = target.TargetItem(r["id"])
             t.processed = r["processed"]
             t.success = r["success"]
             t.message_id = r["message_id"]
@@ -48,7 +48,7 @@ class Target(target.Target):
             res.append(t)
         return res
 
-    async def update(self, broadcast: int, done: typing.List[target.Item]):
+    async def update(self, broadcast: int, done: typing.List[target.TargetItem]):
         for t in done:
             await self.db.update_one(
                 dict(id=t.id, broadcast=broadcast),

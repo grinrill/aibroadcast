@@ -5,14 +5,14 @@ from aiogram.dispatcher import FSMContext, filters
 from aiogram import types, Dispatcher
 from aiogram.types import ContentTypes
 
-import schedule
-from res import Steps, Button
+from . import schedule
+from .res import Steps, Button
 
 if typing.TYPE_CHECKING:
-    from broadcast import Broadcast
+    from .broadcast import Broadcast
 
 
-def register(bc: Broadcast, *FILTERS):
+def register(bc: "Broadcast", *FILTERS):
     dp = bc.dp
 
     @dp.message_handler(
@@ -111,7 +111,7 @@ def register(bc: Broadcast, *FILTERS):
         await bc.preview(message, state)
 
     @dp.callback_query_handler(
-        state=Steps.preview, filters.Text(Button.preview_save.callback_data), *FILTERS
+        filters.Text(Button.preview_save.callback_data), state=Steps.preview, *FILTERS
     )
     async def preview_save(q: types.CallbackQuery, state: FSMContext):
         await q.answer("Подготовка рассылки... Подождите минутку")

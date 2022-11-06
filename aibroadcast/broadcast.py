@@ -8,13 +8,12 @@ import asyncio
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
-from target import Target
-import target
-from storage import BroadcastDB, Storage
-import res
-from res import Steps
-import schedule
-import handler
+from .target import Target, TargetItem
+from .storage import BroadcastDB, Storage
+from . import res
+from .res import Steps
+from . import schedule
+from . import handler
 
 
 @dataclass
@@ -302,11 +301,11 @@ class Broadcast:
 
     async def process_targets(
         self,
-        targets: typing.List[target.Item],
+        targets: typing.List[TargetItem],
         messages: list,
         forward: bool,
         disable_web_page_preview: bool,
-    ) -> typing.List[target.Item]:
+    ) -> typing.List[TargetItem]:
         for t in targets:
             try:
                 m = await self.send_messages(
