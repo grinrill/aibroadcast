@@ -10,7 +10,7 @@ class Target(target.Target):
     db: AsyncIOMotorCollection
     get_users: typing.Callable
 
-    async def __init__(self, db: AsyncIOMotorCollection, get_users: typing.Callable):
+    def __init__(self, db: AsyncIOMotorCollection, get_users: typing.Callable):
         self.db = db
         self.get_users = get_users
 

@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection
 class Storage(storage.Storage):
     db: AsyncIOMotorCollection
 
-    async def __init__(self, db: AsyncIOMotorCollection):
+    def __init__(self, db: AsyncIOMotorCollection):
         self.db = db
 
     async def create(self, r: storage.BroadcastDB) -> storage.BroadcastDB:
