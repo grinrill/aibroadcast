@@ -160,6 +160,8 @@ class Broadcast:
         schedule_delta = schedule_at - datetime.now()
         is_scheduled = schedule_delta > timedelta(minutes=1)
 
+        await message.answer("👇Предпросмотр рассылки👇")
+        await message.chat.do("typing")
         await self.send_messages(
             messages, message.chat.id, forward, disable_web_page_preview
         )
@@ -190,13 +192,14 @@ class Broadcast:
         bc = BroadcastDB(messages, forward, disable_web_page_preview, schedule_at)
         bc = await self.storage.create(bc)
         log.debug("[chat:%d] save: bc created, id=%d", message.chat.id, bc.id)
-        count = self.target.init(bc.id)
+        count = await self.target.init(bc.id)
         log.debug("[chat:%d] save: target inited, count=%d", message.chat.id, count)
 
         if forward:
             duration = self.forward_delay * count * len(messages)
         else:
             duration = self.copy_delay * count * len(messages)
+        duration = timedelta(seconds=duration)
 
         return await message.answer(
             f"""
@@ -208,7 +211,8 @@ class Broadcast:
 Запуск рассылки: <code>{schedule.format(schedule_at)}</code> ({f"через {schedule.format_delta(schedule_delta)})" if is_scheduled else "сейчас"})
 
 Рассылку получат до {count} пользователей бота, она продлиться примерно {schedule.format_delta(duration)}.
-            """
+            """,
+            reply_markup=types.ReplyKeyboardRemove(),
         )
 
     async def status_message(self, bc: BroadcastDB):
@@ -220,16 +224,17 @@ class Broadcast:
 Отправлено: {info.success}
 Ошибок: {info.error}
 
-Запущена в {schedule.format(bc.schedule or bc.created_at)}
+Запущена в {schedule.format(bc.schedule)}
 Завершена в {schedule.format(bc.finished_at)}
-(продлилась {schedule.format_delta((bc.schedule or bc.created_at)-bc.finished_at)})
+(продлилась {schedule.format_delta(bc.finished_at-bc.schedule)})
             """
 
         left = info.total - info.processed
         if bc.forward:
             duration = self.forward_delay * left * len(bc.messages)
         else:
-            duration = self.copy_delay * left * len(bc.messages)
+            duration = self.copy_delay * 2 * left * len(bc.messages)
+        duration = timedelta(seconds=duration)
         time_end = datetime.now() + duration
         return f"""
 <b>Статус рассылки #{bc.id}:</b> В ПРОЦЕССЕ
@@ -238,17 +243,18 @@ class Broadcast:
 Отправлено: {info.success}
 Ошибок: {info.error}
 
-Запущена в {schedule.format(bc.schedule or bc.created_at)}
+Запущена в {schedule.format(bc.schedule)}
 Ориентировочное время завершения: {schedule.format(time_end)}
         """
 
     async def report_progress(self, bc: BroadcastDB):
         text = await self.status_message(bc)
+        kb = res.Button.get_kb_status(bc.id)
         if bc.id not in self.status_messages:
             sent = []
             for chat_id in self.admins:
                 try:
-                    m = await self.bot.send_message(text)
+                    m = await self.bot.send_message(chat_id, text, reply_markup=kb)
                 except Exception as e:
                     log.warn(
                         "[bc:%d] report progress: send error, chat=%d, e: %s",
@@ -263,10 +269,12 @@ class Broadcast:
             return
 
         for s in self.status_messages[bc.id]:
-            if datetime.now() - s.updated_at < timedelta(minutes=1):
+            if datetime.now() - s.updated_at < timedelta(seconds=10):
                 continue
             try:
-                m = await self.bot.edit_message_text(text, s.chat_id, s.message_id)
+                await self.bot.edit_message_text(
+                    text, s.chat_id, s.message_id, reply_markup=kb
+                )
             except Exception as e:
                 log.warn(
                     "[bc:%d] report progress: edit error, chat=%d, e: %s",
@@ -275,13 +283,13 @@ class Broadcast:
                     e,
                 )
                 continue
-            s.updated_at = m.date
+            s.updated_at = datetime.now()
 
     async def finished(self, bc: BroadcastDB):
         text = await self.status_message(bc)
         for chat_id in self.admins:
             try:
-                await self.bot.send_message(text)
+                await self.bot.send_message(chat_id, text)
                 # todo: отправлять списки, возможно csv
             except Exception as e:
                 log.warn(
@@ -300,15 +308,16 @@ class Broadcast:
         forward: bool,
         disable_web_page_preview: bool,
     ) -> types.Message:
-        message.bot = self.bot
         if forward:
+            m = await message.forward(chat_id)
             await asyncio.sleep(self.forward_delay)
-            return await message.forward(chat_id)
+            return m
 
-        await asyncio.sleep(self.copy_delay)
-        return await message.send_copy(
+        m = await message.send_copy(
             chat_id, disable_web_page_preview=disable_web_page_preview
         )
+        await asyncio.sleep(self.copy_delay)
+        return m
 
     async def send_messages(
         self,
@@ -323,9 +332,13 @@ class Broadcast:
             if not isinstance(message, types.Message):
                 message = types.Message.to_object(message)
 
-            m = await self.send_one_message(
-                message, chat_id, forward, disable_web_page_preview
-            )
+            try:
+                m = await self.send_one_message(
+                    message, chat_id, forward, disable_web_page_preview
+                )
+            except Exception:
+                # log.exception("process_targets: send one message, chat=%d", chat_id)
+                raise
             sent.append(m)
 
         return sent
@@ -337,14 +350,15 @@ class Broadcast:
         forward: bool,
         disable_web_page_preview: bool,
     ) -> typing.List[TargetItem]:
+        log.debug("process targets: %d targets got", len(targets))
         for t in targets:
             try:
                 m = await self.send_messages(
                     messages, t.id, forward, disable_web_page_preview
                 )
                 t.success = True
-                t.message_id = m.message_id
-                t.date = m.date
+                t.message_id = [i.message_id for i in m]
+                t.date = m[-1].date
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -356,6 +370,8 @@ class Broadcast:
 
     async def sender(self):
         bc = await self.storage.get_first_running()
+        if not bc:
+            return 0
         chunk_size = 10 if bc.forward else 100
         targets = await self.target.get(bc.id, chunk_size)
 
@@ -384,7 +400,9 @@ class Broadcast:
                 count = await self.sender()
                 if not count:
                     await asyncio.sleep(3)
+                    log.debug("daemon: nothing sent, 3s delay")
             except asyncio.CancelledError:
                 raise
             except Exception:
-                log.exception("daemon: sender error")
+                log.exception("daemon: sender error, 3s delay")
+                await asyncio.sleep(3)

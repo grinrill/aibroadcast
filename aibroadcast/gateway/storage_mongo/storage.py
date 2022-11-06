@@ -76,3 +76,20 @@ class Storage(storage.Storage):
         r.created_at = bc["created_at"]
         r.finished_at = bc["finished_at"]
         return r
+
+    async def get_by_id(self, id: int) -> storage.BroadcastDB:
+        bc = await self.db.find_one({"_id": id})
+        if not bc:
+            return None
+
+        r = storage.BroadcastDB(
+            bc["messages"],
+            bc["forward"],
+            bc["disable_web_page_preview"],
+            bc["schedule"],
+        )
+        r.id = bc["_id"]
+        r.done = bc["done"]
+        r.created_at = bc["created_at"]
+        r.finished_at = bc["finished_at"]
+        return r

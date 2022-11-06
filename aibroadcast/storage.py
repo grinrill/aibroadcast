@@ -9,8 +9,8 @@ class BroadcastDB:
     disable_web_page_preview: bool
     schedule: datetime
 
-    id: int
-    done: bool
+    id: int = None
+    done: bool = False
 
     created_at: datetime
     finished_at: datetime = None
@@ -43,4 +43,7 @@ class Storage:
         pass
 
     async def get_first_running(self) -> BroadcastDB:
+        pass
+
+    async def get_by_id(self, id: int) -> BroadcastDB:
         pass

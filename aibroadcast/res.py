@@ -66,6 +66,7 @@ class Button:
         "ПОДТВЕРДИТЬ РАССЫЛКУ", callback_data="newbc_save"
     )
 
+    @classmethod
     def get_kb_preview(self, forward: bool):
         kb = types.InlineKeyboardMarkup()
         # kb.row(self.preview_change_content)
@@ -75,3 +76,14 @@ class Button:
         # )
         # kb.row(self.preview_change_schedule)
         kb.row(self.preview_save)
+        return kb
+
+    get_status_update = lambda i: types.InlineKeyboardButton(
+        "Обновить", callback_data=f"bc_st {i}"
+    )
+
+    @classmethod
+    def get_kb_status(self, bc_id: int):
+        kb = types.InlineKeyboardMarkup()
+        kb.row(self.get_status_update(bc_id))
+        return kb

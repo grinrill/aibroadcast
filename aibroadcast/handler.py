@@ -15,6 +15,14 @@ if typing.TYPE_CHECKING:
 def register(bc: "Broadcast", *FILTERS):
     dp = bc.dp
 
+    @dp.message_handler(filters.Text(Button.cancel.text), state=Steps, *FILTERS)
+    async def cancel(message: types.Message, state: FSMContext):
+        await state.reset_data()
+        await state.reset_state()
+        await message.answer(
+            "Рассылка отменена", reply_markup=types.ReplyKeyboardRemove()
+        )
+
     @dp.message_handler(
         filters.Text(Button.finish_content.text), state=Steps.content, *FILTERS
     )
@@ -56,7 +64,7 @@ def register(bc: "Broadcast", *FILTERS):
             await bc.choose_schedule(message, state)
         else:
             await Steps.web_page_preview.set()
-            await bc.web_page_preview(message, state)
+            await bc.choose_web_page_preview(message, state)
 
     @dp.message_handler(
         filters.Text(
@@ -115,9 +123,32 @@ def register(bc: "Broadcast", *FILTERS):
     )
     async def preview_save(q: types.CallbackQuery, state: FSMContext):
         await q.answer("Подготовка рассылки... Подождите минутку")
-        await q.message.delete_reply_markup()
         await q.message.chat.do("typing")
 
-        await bc.save(q.message, state)
+        try:
+            await bc.save(q.message, state)
+        except Exception as e:
+            await q.message.answer(
+                f"Неизвестная ошибка: <code>{str(e)}</code>\nПопробуйте позже или сообщите разработчику"
+            )
+            raise
+        await q.message.delete_reply_markup()
         await state.reset_state()
         await state.reset_data()
+
+    @dp.callback_query_handler(filters.Text(startswith="bc_st"), state="*", *FILTERS)
+    async def status_update(q: types.CallbackQuery, state: FSMContext):
+        await q.answer("Обновляю данные...")
+        bc_id = int(q.data.split()[-1])
+        bc_data = await bc.storage.get_by_id(bc_id)
+
+        text = await bc.status_message(bc_data)
+        kb = Button.get_kb_status(bc_data.id)
+        await q.message.edit_text(text, reply_markup=kb)
+
+    @dp.message_handler(
+        state=Steps,
+        *FILTERS,
+    )
+    async def unhandled(message: types.Message, state: FSMContext):
+        await message.answer("Кажется, я тебя не понял. Попробуй еще раз")

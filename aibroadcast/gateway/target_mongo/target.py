@@ -34,9 +34,7 @@ class Target(target.Target):
         return len(recs)
 
     async def get(self, broadcast: int, lenght: int) -> list:
-        recs = await self.db.find(
-            dict(broadcast=broadcast, processed=False), limit=lenght
-        )
+        recs = self.db.find(dict(broadcast=broadcast, processed=False), limit=lenght)
         res = []
         async for r in recs:
             t = target.TargetItem(r["id"])
@@ -51,7 +49,7 @@ class Target(target.Target):
     async def update(self, broadcast: int, done: typing.List[target.TargetItem]):
         for t in done:
             await self.db.update_one(
-                dict(id=t.id, broadcast=broadcast),
+                dict(id=t.id, broadcast=broadcast, processed=False),
                 {
                     "$set": dict(
                         processed=True,
@@ -73,6 +71,6 @@ class Target(target.Target):
             dict(broadcast=broadcast, success=True)
         )
         info.error = await self.db.count_documents(
-            dict(broadcast=broadcast, error={"$new": None})
+            dict(broadcast=broadcast, error={"$ne": None})
         )
         return info

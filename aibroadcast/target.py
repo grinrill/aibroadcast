@@ -7,11 +7,11 @@ class TargetFilter:
 
 class TargetItem:
     id: int
-    processed: bool
-    success: bool
-    message_id: int
-    date: datetime
-    error: str
+    processed: bool = False
+    success: bool = None
+    message_id: int = None
+    date: datetime = None
+    error: str = None
 
     def __init__(self, id):
         self.id = id
