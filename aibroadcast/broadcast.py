@@ -395,6 +395,7 @@ class Broadcast:
         return len(targets)
 
     async def daemon(self):
+        log.warn("daemon started")
         while True:
             try:
                 count = await self.sender()
@@ -402,6 +403,7 @@ class Broadcast:
                     await asyncio.sleep(3)
                     log.debug("daemon: nothing sent, 3s delay")
             except asyncio.CancelledError:
+                log.warn("daemon cancelled")
                 raise
             except Exception:
                 log.exception("daemon: sender error, 3s delay")
