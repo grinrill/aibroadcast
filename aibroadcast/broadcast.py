@@ -308,6 +308,7 @@ class Broadcast:
         forward: bool,
         disable_web_page_preview: bool,
     ) -> types.Message:
+        aiogram.Bot.set_current(self.bot)
         if forward:
             m = await message.forward(chat_id)
             await asyncio.sleep(self.forward_delay)
