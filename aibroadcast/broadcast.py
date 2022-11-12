@@ -338,7 +338,7 @@ class Broadcast:
                     message, chat_id, forward, disable_web_page_preview
                 )
             except Exception:
-                log.exception("process_targets: send one message, chat=%d", chat_id)
+                # log.exception("process_targets: send one message, chat=%d", chat_id)
                 raise
             sent.append(m)
 
