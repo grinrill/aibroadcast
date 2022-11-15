@@ -195,6 +195,9 @@ class Broadcast:
         count = await self.target.init(bc.id)
         log.debug("[chat:%d] save: target inited, count=%d", message.chat.id, count)
 
+        bc.done = False
+        await self.storage.update(bc.id, bc)
+
         if forward:
             duration = self.forward_delay * count * len(messages)
         else:
