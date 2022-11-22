@@ -190,8 +190,11 @@ class Broadcast:
 
         log.debug("[chat:%d] save: before", message.chat.id)
         bc = BroadcastDB(messages, forward, disable_web_page_preview, schedule_at)
+        bc.done = True  # until ready
+        # TODO: добавить поле bc.ready?
         bc = await self.storage.create(bc)
         log.debug("[chat:%d] save: bc created, id=%d", message.chat.id, bc.id)
+        
         count = await self.target.init(bc.id)
         log.debug("[chat:%d] save: target inited, count=%d", message.chat.id, count)
 
