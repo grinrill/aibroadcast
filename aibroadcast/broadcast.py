@@ -32,6 +32,7 @@ class Broadcast:
     target: Target
     storage: Storage
     admins: list
+    return_callback = None
 
     collected_content = dict()
     status_messages = dict()

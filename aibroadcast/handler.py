@@ -22,6 +22,21 @@ def register(bc: "Broadcast", *FILTERS):
         await message.answer(
             "Рассылка отменена", reply_markup=types.ReplyKeyboardRemove()
         )
+        if bc.return_callback:
+            await bc.return_callback(message, state)
+
+    @dp.callback_query_handler(
+        filters.Text(Button.cancel_callback.callback_data), state="*", *FILTERS
+    )
+    async def cancel_cb(q: types.CallbackQuery, state: FSMContext):
+        await q.answer("")
+        await state.reset_data()
+        await state.reset_state()
+        await q.message.answer(
+            "Рассылка отменена", reply_markup=types.ReplyKeyboardRemove()
+        )
+        if bc.return_callback:
+            await bc.return_callback(q.message, state)
 
     @dp.message_handler(
         filters.Text(Button.finish_content.text), state=Steps.content, *FILTERS
@@ -135,6 +150,8 @@ def register(bc: "Broadcast", *FILTERS):
         await q.message.delete_reply_markup()
         await state.reset_state()
         await state.reset_data()
+        if bc.return_callback:
+            await bc.return_callback(q.message, state)
 
     @dp.callback_query_handler(filters.Text(startswith="bc_st"), state="*", *FILTERS)
     async def status_update(q: types.CallbackQuery, state: FSMContext):

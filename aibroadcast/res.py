@@ -18,6 +18,9 @@ def choosen(c, text):
 
 
 class Button:
+    cancel_callback = types.InlineKeyboardButton(
+        "Отменить рассылка", callback_data="newbc_cancel"
+    )
     cancel = types.KeyboardButton("Отменить рассылку")
     kb_cancel = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb_cancel.row(cancel)
@@ -76,6 +79,7 @@ class Button:
         # )
         # kb.row(self.preview_change_schedule)
         kb.row(self.preview_save)
+        kb.row(self.cancel_callback)
         return kb
 
     get_status_update = lambda i: types.InlineKeyboardButton(
