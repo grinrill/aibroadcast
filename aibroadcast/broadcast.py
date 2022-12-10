@@ -70,6 +70,7 @@ class Broadcast:
 
 <i>Можно отправить несколько сообщений - бот обработает все.</i>""",
             reply_markup=res.Button.kb_cancel,
+            parse_mode="html",
         )
 
     async def collect_content(self, message: types.Message, sec_wait=1) -> list:
@@ -118,6 +119,7 @@ class Broadcast:
             f"""
 Записано сообщений: {len(messages)}. Вы можете отправить еще или нажать кнопку "Продолжить" """,
             reply_markup=res.Button.kb_content,
+            parse_mode="html",
         )
 
     async def choose_sending_method(
@@ -132,6 +134,7 @@ class Broadcast:
 
 <b>Копировать</b> - обычная рассылка, бот будет отправлять сообщения от своего имени. Идет гораздо быстрее, чем рассылка <i>Пересылкой</i>.""",
             reply_markup=res.Button.kb_sending_method,
+            parse_mode="html",
         )
 
     async def choose_web_page_preview(
@@ -149,6 +152,7 @@ class Broadcast:
 Когда запускать рассылку?
 Отправьте время запуска рассылки в формате `ДД.ММ чч:мм` или выберете "Запуск сейчас".""",
             reply_markup=res.Button.kb_schedule,
+            parse_mode="html",
         )
 
     async def preview(self, message: types.Message, state: FSMContext) -> types.Message:
@@ -177,6 +181,7 @@ class Broadcast:
 Если все верно, нажмите "ПОДТВЕРДИТЬ РАССЫЛКУ"
             """,
             reply_markup=res.Button.get_kb_preview(forward),
+            parse_mode="html",
         )
 
     async def save(self, message: types.Message, state: FSMContext) -> types.Message:
@@ -194,7 +199,7 @@ class Broadcast:
         # TODO: добавить поле bc.ready?
         bc = await self.storage.create(bc)
         log.debug("[chat:%d] save: bc created, id=%d", message.chat.id, bc.id)
-        
+
         count = await self.target.init(bc.id)
         log.debug("[chat:%d] save: target inited, count=%d", message.chat.id, count)
 
@@ -219,6 +224,7 @@ class Broadcast:
 Рассылку получат до {count} пользователей бота, она продлиться примерно {schedule.format_delta(duration)}.
             """,
             reply_markup=types.ReplyKeyboardRemove(),
+            parse_mode="html",
         )
 
     async def status_message(self, bc: BroadcastDB):
@@ -260,7 +266,9 @@ class Broadcast:
             sent = []
             for chat_id in self.admins:
                 try:
-                    m = await self.bot.send_message(chat_id, text, reply_markup=kb)
+                    m = await self.bot.send_message(
+                        chat_id, text, reply_markup=kb, parse_mode="html"
+                    )
                 except Exception as e:
                     log.warn(
                         "[bc:%d] report progress: send error, chat=%d, e: %s",
@@ -279,7 +287,7 @@ class Broadcast:
                 continue
             try:
                 await self.bot.edit_message_text(
-                    text, s.chat_id, s.message_id, reply_markup=kb
+                    text, s.chat_id, s.message_id, reply_markup=kb, parse_mode="html"
                 )
             except Exception as e:
                 log.warn(
@@ -295,7 +303,7 @@ class Broadcast:
         text = await self.status_message(bc)
         for chat_id in self.admins:
             try:
-                await self.bot.send_message(chat_id, text)
+                await self.bot.send_message(chat_id, text, parse_mode="html")
                 # todo: отправлять списки, возможно csv
             except Exception as e:
                 log.warn(
